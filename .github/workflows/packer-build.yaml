@@ -5,29 +5,45 @@ on:
 
   pull_request:
     branches:
+      - "master"
       - "release"
       - "build"
 
   push:
     branches:
+      - "master"
       - "release"
       - "build"
+      - "test"
 
 jobs:
   packer_build:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Install Packer
+        id: install-packer
+        run: |
+          sudo apt update
+          sudo apt install -y packer
+
       - name: Checkout
         uses: actions/checkout@v2
 
-      - name: Packer build
+      - name: Validate Build
+        id: validate-build
+        run: |
+          packer validate packer.json
+
+      - name: Packer Builder
+        id: packer-build
         uses: ExitoLab/packer_build_action_aws@v0.2.10
         with:
-          templateFile: "ami.json"
-          workingDir: "ami"
+          templateFile: "packer.json"
+          workingDir: "."
           varFile: "variables.json"
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           AWS_DEFAULT_REGION: ${{ secrets.AWS_REGION }}
+        if: steps.validate-build.status != "failure" && github.ref == 'refs/heads/release'
